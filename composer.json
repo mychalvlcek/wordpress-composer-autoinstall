@@ -1,0 +1,22 @@
+
+{
+	"name": "vlcekmi3/wordpress-composer-autoinstall",
+	"description": "Autoinstall wordpress from composer",
+	"homepage": "https://github.com/vlcekmi3/wordpress-composer-autoinstall",
+	"keywords": ["composer", "wordpress", "wp-config"],
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Michal Vlček",
+			"email": "mychalvlcek@gmail.com"
+		}
+	],
+	"require": {
+		"php": ">=5.3.2"
+	},
+	"autoload": {
+		"psr-4": {
+			"WP\\WPAutoinstall\\": "src/"
+		}
+	}
+}

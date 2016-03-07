@@ -286,8 +286,10 @@ define('WP_CONTENT_URL', 'http://' . \$_SERVER['HTTP_HOST'] . '/wp-content');\r\
 		$sqlFile = file($sqlPath);
 		$params['site_title'] = self::$io->askAndValidate('Title of your Website (Default: Title of new Wordpress Site): ', [self::class, 'returnValue'], null, 'Title of new Wordpress Site');
 		$params['admin_email'] = self::$io->askAndValidate('Admin email (Default: username@example.local): ', [self::class, 'returnValue'], null, 'username@example.local');
+		$params['admin_username'] = self::$io->askAndValidate('Wordpress admin username (Default: admin): ', [self::class, 'returnValue'], null, 'admin');
+		$params['admin_password'] = self::$io->askAndValidate('Wordpress admin password (Default: admin): ', [self::class, 'returnValue'], null, 'admin');
 		$params['website_url'] = self::$io->askAndValidate('Url of the website with http:// (Default: http://wordpress.loc): ', [self::class, 'returnValue'], null, 'http://wordpress.loc');
-		
+
 		$conn = new \mysqli($params['DB_HOST'], $params['DB_USER'], $params['DB_PASSWORD']);
 		if ($conn->connect_error) {
 		    self::$io->write("Connection failed: " . $conn->connect_error);
@@ -307,6 +309,8 @@ define('WP_CONTENT_URL', 'http://' . \$_SERVER['HTTP_HOST'] . '/wp-content');\r\
 			$line = preg_replace('#{{website_url}}#', $params['website_url'], $line);
 			$line = preg_replace('#{{title-of-the-site}}#', $params['site_title'], $line);
 			$line = preg_replace('#{{admin_email}}#', $params['admin_email'], $line);
+			$line = preg_replace('#{{admin_password}}#', "MD5('".$params['admin_password']."')", $line);
+			$line = preg_replace('#{{admin_username}}#', $params['admin_username'], $line);
 			$plainSQL .= $line;
 		}
 
@@ -326,6 +330,3 @@ define('WP_CONTENT_URL', 'http://' . \$_SERVER['HTTP_HOST'] . '/wp-content');\r\
 	    }
 	}
 }
-
-
-

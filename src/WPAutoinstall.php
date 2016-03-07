@@ -46,6 +46,8 @@ class WPAutoinstall {
 			$params['table_prefix'] = self::$io->askAndValidate('Set Wordpress table prefix (default: wp_): ', [self::class, 'returnValue'], null, 'wp_');
 			$params['WP_DEBUG'] = self::$io->askAndValidate('Debug (default: false): ', [self::class, 'returnValue'], null, 'false');
 
+			self::prepareDatabase($params);
+
 			$config_file = self::processConfig($config_file, $params);
 			self::writeConfigFile($config_dir, $config_file);
 
@@ -156,10 +158,7 @@ define('WP_CONTENT_URL', 'http://' . \$_SERVER['HTTP_HOST'] . '/wp-content');\r\
 		self::createPluginFolder($pluginPath);
 		self::createMuPluginFolder($muPluginPath);
 		self::createUploadsFolder($uploadsFolder);
-		
-		// Generate basic database or use one from latest server dumps
-		// 
-		// Using a pre-existing subdirectory install - http://codex.wordpress.org/Giving_WordPress_Its_Own_Directory
+		self::copyRunFiles();
 	}
 
 	public static function deleteWPContent() {
@@ -252,4 +251,81 @@ define('WP_CONTENT_URL', 'http://' . \$_SERVER['HTTP_HOST'] . '/wp-content');\r\
 			self::createDirectory($uploadsFolder);
 		}
 	}
+
+	private static function copyRunFiles() {
+		$index = dirname(self::$extra['wordpress-install-dir']).'/index.php';
+		$htaccess = '.htaccess';
+		if (!file_exists($index)) {
+			copy(self::$extra['wordpress-install-dir']."/index.php", $index);
+		}
+		self::processIndexFile(file($index));
+
+		if (!file_exists($htaccess)) {
+			copy(__DIR__."/".$htaccess, $htaccess);
+		}
+	}
+
+	private static function processIndexFile($index_file) {
+		foreach ($index_file as $line_num => $line) {
+			if (preg_match('#.*\'/wp\-blog\-header\.php\'.*\);#', $line, $match)) {
+				$index_file[$line_num] = 'require( dirname( __FILE__ ) . '."'/wordpress'".' . \'/wp-blog-header.php\' );';
+			}
+		}
+
+		$handle = fopen(dirname(self::$extra['wordpress-install-dir']).'/index.php', 'w');
+		foreach ($index_file as $line) {
+			fwrite($handle, $line);
+		}
+		fclose($handle);
+
+		return $index_file;
+	}
+
+	private static function prepareDatabase($params) {
+		$sqlPath = __DIR__."/01-first-import.sql";
+		$sqlFile = file($sqlPath);
+		$params['site_title'] = self::$io->askAndValidate('Title of your Website (Default: Title of new Wordpress Site): ', [self::class, 'returnValue'], null, 'Title of new Wordpress Site');
+		$params['admin_email'] = self::$io->askAndValidate('Admin email (Default: username@example.local): ', [self::class, 'returnValue'], null, 'username@example.local');
+		$params['website_url'] = self::$io->askAndValidate('Url of the website with http:// (Default: http://wordpress.loc): ', [self::class, 'returnValue'], null, 'http://wordpress.loc');
+		
+		$conn = new \mysqli($params['DB_HOST'], $params['DB_USER'], $params['DB_PASSWORD']);
+		if ($conn->connect_error) {
+		    self::$io->write("Connection failed: " . $conn->connect_error);
+		    die;
+		}
+		$sql = "CREATE DATABASE IF NOT EXISTS ".$params['DB_NAME'];
+		if ($conn->query($sql) === TRUE) {
+			self::$io->write("Database `".$params['DB_NAME']." created successfully!");
+		} else {
+			self::$io->write("Error creating database `".$params['DB_NAME'].": ".$conn->error);
+		}
+		$conn->close();
+
+		$plainSQL = "";
+		foreach ($sqlFile as $line_num => $line) {
+			$line = preg_replace('#{{table_prefix}}#', $params['table_prefix'], $line);
+			$line = preg_replace('#{{website_url}}#', $params['website_url'], $line);
+			$line = preg_replace('#{{title-of-the-site}}#', $params['site_title'], $line);
+			$line = preg_replace('#{{admin_email}}#', $params['admin_email'], $line);
+			$plainSQL .= $line;
+		}
+
+		$mysql_host = $params['DB_HOST'];
+		$mysql_database = $params['DB_NAME'];
+		$mysql_user = $params['DB_USER'];
+		$mysql_password = $params['DB_PASSWORD'];
+		$db = new PDO("mysql:host=$mysql_host;dbname=$mysql_database", $mysql_user, $mysql_password);
+
+		$stmt = $db->prepare($plainSQL);
+
+		if ($stmt->execute()) {
+		    self::$io->write('Database query successfully executed!');
+		} else {
+			self::$io->write('Database query failed!');
+			self::$io->write(mysqli_stmt_error($stmt));
+	    }
+	}
 }
+
+
+

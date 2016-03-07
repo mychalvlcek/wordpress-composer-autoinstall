@@ -254,14 +254,14 @@ define('WP_CONTENT_URL', 'http://' . \$_SERVER['HTTP_HOST'] . '/wp-content');\r\
 
 	private static function copyRunFiles() {
 		$index = dirname(self::$extra['wordpress-install-dir']).'/index.php';
-		$htaccess = '.htaccess';
+		$htaccess = dirname(self::$extra['wordpress-install-dir']).'/.htaccess';
 		if (!file_exists($index)) {
 			copy(self::$extra['wordpress-install-dir']."/index.php", $index);
 		}
 		self::processIndexFile(file($index));
 
 		if (!file_exists($htaccess)) {
-			copy(__DIR__."/".$htaccess, $htaccess);
+			copy(__DIR__."/.htaccess", $htaccess);
 		}
 	}
 
